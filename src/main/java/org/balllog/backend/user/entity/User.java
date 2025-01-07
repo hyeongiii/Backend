@@ -1,9 +1,14 @@
 package org.balllog.backend.user.entity;
 
+import com.fasterxml.jackson.core.JsonToken;
 import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.balllog.backend.global.entity.BaseTimeEntity;
+import org.balllog.backend.global.exception.GeneralException;
+import org.balllog.backend.global.response.Code;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -13,19 +18,19 @@ import java.time.LocalDateTime;
 @Slf4j
 @Getter
 @Entity
-@Builder
+@NoArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
-public class User {
+public class User extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private Long id;
 
     private int kboTeamId;
 
     @Column(unique = true, nullable = false)
     private String socialId;
 
-    private LoginType loginType;
+    private SocialType socialType;
 
     private String password;
 
@@ -51,14 +56,23 @@ public class User {
 
     private LocalDateTime deletedAt;
 
-    public enum LoginType {
-        KAKAO(1, "카카오"),
-        APPLE(2, "애플");
+    public enum SocialType {
+        KAKAO("kakao", "카카오"),
+        APPLE("apple", "애플");
 
-        private int type;
+        private String type;
         private String description;
 
-        LoginType(int socialType, String description) {}
+        SocialType(String socialType, String description) {}
+
+        public static SocialType fromString(String socialType) {
+            for (SocialType st : SocialType.values()) {
+                if (st.type.equalsIgnoreCase(socialType)) {
+                    return st;
+                }
+            }
+            throw new GeneralException(Code.SOCIAL_TYPE_NOT_FOUND);
+        }
     }
 
     public enum Status {
@@ -75,9 +89,15 @@ public class User {
     }
 
     @Builder
-    public User(String socialId, LoginType loginType, UserRole role) {
+    public User(Long id, String socialId, SocialType socialType) {
+        this.id = id;
         this.socialId = socialId;
-        this.loginType = loginType;
+        this.socialType = socialType;
+    }
+
+    public User(String socialId, SocialType socialType, UserRole role) {
+        this.socialId = socialId;
+        this.socialType = socialType;
         this.role = role != null ? role : UserRole.USER;
         this.status = Status.ACTIVE;
         this.createdAt = LocalDateTime.now();
